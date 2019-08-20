@@ -1,5 +1,6 @@
 'use strict'
 
+//require() is an import statement built into node.js - it reads complex files.
 const express = require('express');
 require('dotenv').config()
 const cors = require('cors');
@@ -10,89 +11,97 @@ app.use(cors());
 const PORT = process.env.PORT;
 
 //Global Variables
-const weatherArray = [];
+// const weatherArray = [];
 
-
-//Constructor for NEW location
-function NewLocation(query, format, lat, lng) {
-  this.search_Query = query;
+//Constructor for Location
+function Location(query, format, lat, lng) {
+  this.search_query = query;
   this.formatted_query = format
   this.latitude = lat;
   this.longitude = lng;
 }
 
-//Constructor for the NEW Weather
-function NewWeather(summary, date){
-  this.forcast = summary;
-  this.time = date;
-}
+// //Constructor for the Weather
+// function Weather(summary, date){
+//   this.forcast = summary;
+//   this.time = date;
+// }
 
 // ======= TARGET LOCATION in JSON FILE =======
-app.get('/location', (req, res) => {
-  try {
+app.get('/location', (request, response) => {
 
-    const dataFromGoogle = require('./data/geo.json');
-    const searchQuery = req.query.data;
-    const formattedQuery = dataFromGoogle.results[0].formatted_address;
-    const lat = dataFromGoogle.results[0].geometry.location.lat;
-    const lng = dataFromGoogle.results[0].geometry.location.lng;
+  //Feed this all into consructor from JSON file
+  const dataFromGoogle = require('./data/geo.json');
+  const searchQuery = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
 
-    const formattedData = new NewLocation(searchQuery, formattedQuery, lat, lng);
+  const specificGeoData = dataFromGoogle.results[0];
 
-    res.send(formattedData);
+  const formattedQuery = specificGeoData.formatted_address;
+  const lat = specificGeoData.geometry.location.lat;
+  const lng = specificGeoData.geometry.location.lng;
 
-  } catch (error) {
-    console.error(error);
-  }
+  const formattedData = new Location(searchQuery, formattedQuery, lat, lng);
+
+  //start the response cycle
+  response.send(formattedData);
 })
 
 // ======= TARGET WEATHER in JSON FILE =======
+app.get('/weather', getWeather)
 
-app.get('/weather', (req, res) => {
-  try {
+function getWeather(request, response){
 
-    const datafromDarkSky = require('./data/darksky.json');
+  let weatherData = require('./data/darksky.json')
 
-    for(let i = 0; i < datafromDarkSky.daily.data.length; i++){
-      let forcast = datafromDarkSky.daily.data[i].summary;
-      let time = datafromDarkSky.daily.data[i].time*1000;
-      var msdate = new Date(time);
-      //create object
-      const formattedData = new NewWeather(forcast, msdate);
-      weatherArray.push(formattedData);
-    }
+  const eightDays = weatherdata.daily.data;
 
-    res.send(weatherArray);
+  const formattedDays = eightDays.map(day => new Day(day.summary, day.time)); //all arrow functions implicitly return the output of the callback function.
 
-  } catch (error) {
-    console.error(error);
+  response.send(weatherdata)
+
+  function Day (summary, time) {
+    this.forecast = summary;
+    this.time = new Date(time *1000).toDateString();
   }
-})
+}
 
 
-// ======= TO DO =======
-// Using each weather object of the result, return an array of objects for each day of the response which contains the necessary information for correct client rendering. See the sample response.
+// app.get('/weather', (req, response) => {
+//   try {
+//     const datafromDarkSky = require('./data/darksky.json');
 
-//
+//     const eightDays = datafromDarkSky.daily.data;
 
-// [
-//   {
-//     "forecast": "Partly cloudy until afternoon.",
-//     "time": "Mon Jan 01 2001"
-//   },
-//   {
-//     "forecast": "Mostly cloudy in the morning.",
-//     "time": "Tue Jan 02 2001"
-//   },
-//   ...
-// ]
+//     for(let i = 0; i < eightDays.length; i++){
+//       let forcast = eightDays[i].summary;
+//       let time = eightDays[i].time*1000;
+//       var msdate = new Date(time);
+//       //create object
+//       const formattedData = new Weather(forcast, msdate);
+//       weatherArray.push(formattedData);
+//     }
 
-//we have an object, we need an array of objects
-//so we need to take the outputs of our constructors and push them into new arrays.
+//     response.send(weatherArray);
 
+//   } catch (error) {
+//     console.error(error);
+//   }
+// })
 
 // ====================================
 
 app.listen(PORT, () => {
   console.log(`app is running on ${PORT}`);
 });
+
+
+// class notes
+
+// API is a server that lives on the internet. Places where code lives.
+//1. Go to google api console developer website.
+// 2. Copy URL in Postman and in server.js under /location
+// 3. install superagent = require('cuperagent') ---> NOT EXPRESS (recieves http request, ears of operation). SUPERAGENT is the mouth, it talks to the internet over http.
+// 4. rnpm install -S superagent
+//5. superagent.get('url from string')
+//......
+//10. The dynamic part of the code is in the addess.
