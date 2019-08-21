@@ -3,6 +3,7 @@
 //require() is an import statement built into node.js - it reads complex files.
 const express = require('express');
 const cors = require('cors');
+const superagent = require('superagent');
 require('dotenv').config()
 
 const app = express();
@@ -18,14 +19,17 @@ function Location(query, format, lat, lng) {
   this.longitude = lng;
 }
 
-
-
 // ======= TARGET LOCATION in JSON FILE =======
 app.get('/location', (request, response) => {
-  try {
-  //Feed this all into consructor from JSON file
-    const geoData = require('./data/geo.json');
-    const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
+  const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
+
+  const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GEOCODE_API}`;
+
+  superagent.get(urlToVisit).then(responseFromSuper => {
+    console.log('stuff', responseFromSuper.body);
+
+
+    const geoData = responseFromSuper.body;
 
     const specificGeoData = geoData.results[0];
 
@@ -34,14 +38,14 @@ app.get('/location', (request, response) => {
     const lng = specificGeoData.geometry.location.lng;
 
     const newLocation = new Location(query, formatted, lat, lng);
-
     //start the response cycle
     response.send(newLocation);
-  } catch(e) {
-    console.error(e);
-    response.status(500).send(e.message);
-  }
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
 })
+
 
 // ======= TARGET WEATHER in JSON FILE =======
 app.get('/weather', getWeather)
