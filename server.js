@@ -3,6 +3,7 @@
 //require() is an import statement built into node.js - it reads complex files.
 const express = require('express');
 const cors = require('cors');
+const superagent = require('superagent');
 require('dotenv').config()
 
 const app = express();
@@ -18,14 +19,18 @@ function Location(query, format, lat, lng) {
   this.longitude = lng;
 }
 
+// =========== TARGET LOCATION from API ===========
 
-
-// ======= TARGET LOCATION in JSON FILE =======
 app.get('/location', (request, response) => {
-  try {
-  //Feed this all into consructor from JSON file
-    const geoData = require('./data/geo.json');
-    const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
+  const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
+
+  const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GEOCODE_API}`;
+
+  superagent.get(urlToVisit).then(responseFromSuper => {
+    console.log('stuff', responseFromSuper.body);
+
+
+    const geoData = responseFromSuper.body;
 
     const specificGeoData = geoData.results[0];
 
@@ -34,36 +39,72 @@ app.get('/location', (request, response) => {
     const lng = specificGeoData.geometry.location.lng;
 
     const newLocation = new Location(query, formatted, lat, lng);
-
     //start the response cycle
     response.send(newLocation);
-  } catch(e) {
-    console.error(e);
-    response.status(500).send(e.message);
-  }
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
 })
 
-// ======= TARGET WEATHER in JSON FILE =======
+// =========== TARGET WEATHER from API ===========
+
 app.get('/weather', getWeather)
 
 function getWeather(request, response){
-  try {
-    const weatherdata = require('./data/darksky.json');
+  // console.log(request);
 
-    const eightDays = weatherdata.daily.data;
+  const localData = request.query.data;
+
+  const urlDarkSky = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${localData.latitude},${localData.longitude}`;
+
+  superagent.get(urlDarkSky).then(responseFromSuper => {
+
+    const weatherData = responseFromSuper.body;
+    // console.log('weather', weatherData);
+
+    const eightDays = weatherData.daily.data;
 
     const formattedDays = eightDays.map(day => new Day(day.summary, day.time)
-    ); //all arrow functions implicitly return the output of the callback function.
-
+    );
     response.send(formattedDays)
-  } catch (e) {
-    console.error(e);
-    response.status(500).send(e.message);
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
+  function Day (summary, time) {
+    this.forecast = summary;
+    this.time = new Date(time *1000).toDateString();
   }
 }
-function Day (summary, time) {
-  this.forecast = summary;
-  this.time = new Date(time *1000).toDateString();
+// ============ EVENTBRITE from API ==============
+
+app.get('/events', getEvents)
+
+function getEvents(request, response){
+
+  let eventData = request.query.data;
+
+  const urlfromEventbrite = `https://www.eventbriteapi.com/v3/events/search/?sort_by=date&location.latitude=${eventData.latitude}&location.longitude=${eventData.longitude}&token=${process.env.EVENTBRITE_API_KEY}`;
+
+  superagent.get(urlfromEventbrite).then(responseFromSuper => {
+    console.log(responseFromSuper.body)
+
+    const eventbriteData = responseFromSuper.body.events;
+
+    const formattedEvents = eventbriteData.map(event => new Event(event.url, event.name.text, event.start.local, event.description.text));
+
+    response.send(formattedEvents);
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
+  function Event (link, name, event_date, summary){
+    this.link = link;
+    this.name = name;
+    this.event_date = new Date(event_date).toDateString();
+    this.summary = summary;
+  }
 }
 
 // ====================================
@@ -78,7 +119,7 @@ app.listen(PORT, () => {
 // API is a server that lives on the internet. Places where code lives.
 //1. Go to google api console developer website.
 // 2. Copy URL in Postman and in server.js under /location
-// 3. install superagent = require('cuperagent') ---> NOT EXPRESS (recieves http request, ears of operation). SUPERAGENT is the mouth, it talks to the internet over http.
+// 3. install superagent = require('superagent') ---> NOT EXPRESS (recieves http request, ears of operation). SUPERAGENT is the mouth, it talks to the internet over http.
 // 4. rnpm install -S superagent
 //5. superagent.get('url from string')
 //......
