@@ -2,91 +2,69 @@
 
 //require() is an import statement built into node.js - it reads complex files.
 const express = require('express');
-require('dotenv').config()
 const cors = require('cors');
+require('dotenv').config()
 
 const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT;
 
-//Global Variables
-// const weatherArray = [];
-
 //Constructor for Location
 function Location(query, format, lat, lng) {
   this.search_query = query;
-  this.formatted_query = format
+  this.formatted_query = format;
   this.latitude = lat;
   this.longitude = lng;
 }
 
-// //Constructor for the Weather
-// function Weather(summary, date){
-//   this.forcast = summary;
-//   this.time = date;
-// }
+
 
 // ======= TARGET LOCATION in JSON FILE =======
 app.get('/location', (request, response) => {
-
+  try {
   //Feed this all into consructor from JSON file
-  const dataFromGoogle = require('./data/geo.json');
-  const searchQuery = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
+    const geoData = require('./data/geo.json');
+    const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
 
-  const specificGeoData = dataFromGoogle.results[0];
+    const specificGeoData = geoData.results[0];
 
-  const formattedQuery = specificGeoData.formatted_address;
-  const lat = specificGeoData.geometry.location.lat;
-  const lng = specificGeoData.geometry.location.lng;
+    const formatted = specificGeoData.formatted_address;
+    const lat = specificGeoData.geometry.location.lat;
+    const lng = specificGeoData.geometry.location.lng;
 
-  const formattedData = new Location(searchQuery, formattedQuery, lat, lng);
+    const newLocation = new Location(query, formatted, lat, lng);
 
-  //start the response cycle
-  response.send(formattedData);
+    //start the response cycle
+    response.send(newLocation);
+  } catch(e) {
+    console.error(e);
+    response.status(500).send(e.message);
+  }
 })
 
 // ======= TARGET WEATHER in JSON FILE =======
 app.get('/weather', getWeather)
 
 function getWeather(request, response){
+  try {
+    const weatherdata = require('./data/darksky.json');
 
-  let weatherData = require('./data/darksky.json')
+    const eightDays = weatherdata.daily.data;
 
-  const eightDays = weatherdata.daily.data;
+    const formattedDays = eightDays.map(day => new Day(day.summary, day.time)
+    ); //all arrow functions implicitly return the output of the callback function.
 
-  const formattedDays = eightDays.map(day => new Day(day.summary, day.time)); //all arrow functions implicitly return the output of the callback function.
-
-  response.send(weatherdata)
-
-  function Day (summary, time) {
-    this.forecast = summary;
-    this.time = new Date(time *1000).toDateString();
+    response.send(formattedDays)
+  } catch (e) {
+    console.error(e);
+    response.status(500).send(e.message);
   }
 }
-
-
-// app.get('/weather', (req, response) => {
-//   try {
-//     const datafromDarkSky = require('./data/darksky.json');
-
-//     const eightDays = datafromDarkSky.daily.data;
-
-//     for(let i = 0; i < eightDays.length; i++){
-//       let forcast = eightDays[i].summary;
-//       let time = eightDays[i].time*1000;
-//       var msdate = new Date(time);
-//       //create object
-//       const formattedData = new Weather(forcast, msdate);
-//       weatherArray.push(formattedData);
-//     }
-
-//     response.send(weatherArray);
-
-//   } catch (error) {
-//     console.error(error);
-//   }
-// })
+function Day (summary, time) {
+  this.forecast = summary;
+  this.time = new Date(time *1000).toDateString();
+}
 
 // ====================================
 
@@ -105,3 +83,8 @@ app.listen(PORT, () => {
 //5. superagent.get('url from string')
 //......
 //10. The dynamic part of the code is in the addess.
+
+
+//lab tomorrow
+//1. Get location (just did in class) and weather and eventbite data from the internet.
+//2. Trello board has everything I need for days instructions.
