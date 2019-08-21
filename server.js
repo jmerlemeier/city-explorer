@@ -46,28 +46,34 @@ app.get('/location', (request, response) => {
   })
 })
 
-
 // ======= TARGET WEATHER in JSON FILE =======
 app.get('/weather', getWeather)
 
 function getWeather(request, response){
-  try {
-    const weatherdata = require('./data/darksky.json');
+  console.log(request);
 
-    const eightDays = weatherdata.daily.data;
+  const localData = request.query.data;
 
+  const urlDarkSky = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${localData.latitude},${localData.longitude}`;
+
+  superagent.get(urlDarkSky).then(responseFromSuper => {
+    
+    const weatherData = responseFromSuper.body;
+    console.log('weather', weatherData);
+
+    const eightDays = weatherData.daily.data;
+    
     const formattedDays = eightDays.map(day => new Day(day.summary, day.time)
-    ); //all arrow functions implicitly return the output of the callback function.
-
+    );
     response.send(formattedDays)
-  } catch (e) {
-    console.error(e);
-    response.status(500).send(e.message);
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
+  function Day (summary, time) {
+    this.forecast = summary;
+    this.time = new Date(time *1000).toDateString();
   }
-}
-function Day (summary, time) {
-  this.forecast = summary;
-  this.time = new Date(time *1000).toDateString();
 }
 
 // ====================================
@@ -82,7 +88,7 @@ app.listen(PORT, () => {
 // API is a server that lives on the internet. Places where code lives.
 //1. Go to google api console developer website.
 // 2. Copy URL in Postman and in server.js under /location
-// 3. install superagent = require('cuperagent') ---> NOT EXPRESS (recieves http request, ears of operation). SUPERAGENT is the mouth, it talks to the internet over http.
+// 3. install superagent = require('superagent') ---> NOT EXPRESS (recieves http request, ears of operation). SUPERAGENT is the mouth, it talks to the internet over http.
 // 4. rnpm install -S superagent
 //5. superagent.get('url from string')
 //......

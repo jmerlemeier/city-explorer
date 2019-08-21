@@ -1,0 +1,19 @@
+Add an environment variable to your server named WEATHER_API_KEY, and use it appropriately in your code.
+
+[
+  {
+    "forecast": "Partly cloudy until afternoon.",
+    "time": "Mon Jan 01 2001"
+  },
+  {
+    "forecast": "Mostly cloudy in the morning.",
+    "time": "Tue Jan 02 2001"
+  },
+  ...
+]
+
+Create a route with a method of get and a path of /weather. 
+
+The callback should make a Superagent-proxied request request to the Dark Sky API for weather information. You will need to use the latitude and longitude from Feature #1 for this request.
+
+Using each weather object of the result, return an array of objects for each day of the response which contains the necessary information for correct client rendering. See the sample response.
