@@ -6,8 +6,14 @@ Start time: 9:00
 Finish time: 10:00
 Actual time needed to complete: 60mins
 
-Number and name of feature: Constructor function
+Number and name of feature: Constructor function with for loop
 Estimate of time needed to complete: 60mins
 Start time: 10:00
 Finish time: 11:00
-Actual time needed to complete: 
+Actual time needed to complete: 180mins
+
+Number and name of feature: Constructor function with for loop
+Estimate of time needed to complete: 60mins
+Start time: 10:00
+Finish time: 11:00
+Actual time needed to complete: 180mins
