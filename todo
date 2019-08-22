@@ -18,11 +18,11 @@ X Execute this file from the command line with the following syntax: psql -d <da
 
 -----Server code workflow:
 
-Create a function to check the database for the location information.
+X Create a function to check the database for the location information.
 - If the location record already exists in the database, send the location object in the response to the client.
 - It it does not exist in the database, request the data from the API, save it in the database, and then send the location object in the response to the client.
 
-For all of your other models, write a single lookup function that is dynamic and can be shared by all of the models. This lookup function should accept several parameters: The search query, A function to execute if the records exist in the table, and a function to execute if the records do not exist in the table.
+X For all of your other models, write a single lookup function that is dynamic and can be shared by all of the models. This lookup function should accept several parameters: The search query, A function to execute if the records exist in the table, and a function to execute if the records do not exist in the table.
 
 Within your route callback, invoke your lookup function, passing the appropriate options, and then...
 - If the records exist, send them as the response to the client.

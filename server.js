@@ -66,41 +66,54 @@ app.get('/location', (request, response) => {
 app.get('/weather', getWeather)
 
 function getWeather(request, response){
-  // console.log(request);
-
   const localData = request.query.data;
-
   const urlDarkSky = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${localData.latitude},${localData.longitude}`;
+  ///WILL REPLACE BELOW
+  client.query(`SELECT * FROM weather WHERE search_query=$1`, [localData.search_query]).then(sqlResult => {
+    if(sqlResult.rowCount > 0) {
+      response.send(sqlResult.rows);
+      console.log('Weather Data exists! :):):)')
+    } else {
+      superagent.get(urlDarkSky).then(responseFromSuper => {
 
-  superagent.get(urlDarkSky).then(responseFromSuper => {
+        const weatherData = responseFromSuper.body;
+        // console.log('weather', weatherData);
 
-    const weatherData = responseFromSuper.body;
-    // console.log('weather', weatherData);
+        const eightDays = weatherData.daily.data;
+        const formattedDays = eightDays.map(day => new Day(day.summary, day.time)
+        );
+        formattedDays.forEach(day => {
+          //start the response cycle
+          const sqlQueryInsert = `INSERT INTO weather
+          (search_query, forecast, time)
+          VALUES 
+          ($1, $2, $3);`;
+          const valuesArray = [localData.search_query, day.forecast, day.time];
+          client.query(sqlQueryInsert, valuesArray);
+        })
 
-    const eightDays = weatherData.daily.data;
-
-    const formattedDays = eightDays.map(day => new Day(day.summary, day.time)
-    );
-    response.send(formattedDays)
-  }).catch(error => {
-    response.status(500).send(error.message);
-    console.error(error);
+        response.send(formattedDays);
+      }).catch(error => {
+        response.status(500).send(error.message);
+        console.error(error);
+      })
+    }//end of else
+    function Day(summary, time) {
+      this.forecast = summary;
+      this.time = new Date(time *1000).toDateString();
+    }
   })
-  function Day (summary, time) {
-    this.forecast = summary;
-    this.time = new Date(time *1000).toDateString();
-  }
 }
 
 // ============ EVENTBRITE from API ==============
 
 app.get('/events', getEvents)
-
 function getEvents(request, response){
-
   let eventData = request.query.data;
-
   const urlfromEventbrite = `https://www.eventbriteapi.com/v3/events/search/?sort_by=date&location.latitude=${eventData.latitude}&location.longitude=${eventData.longitude}&token=${process.env.EVENTBRITE_API_KEY}`;
+///WILL REPLACE BELOW
+
+
 
   superagent.get(urlfromEventbrite).then(responseFromSuper => {
     // console.log(responseFromSuper.body)
@@ -114,6 +127,9 @@ function getEvents(request, response){
     response.status(500).send(error.message);
     console.error(error);
   })
+
+  
+  //END OF ELSE
   function Event (link, name, event_date, summary){
     this.link = link;
     this.name = name;
