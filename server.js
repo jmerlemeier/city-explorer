@@ -14,51 +14,51 @@ const client = new pg.Client(process.env.DATABASE_URL);
 client.connect();
 client.on('error', (error) => console.error(error));
 
+//Global Vars
 const PORT = process.env.PORT || 8888;
 
+const sqlS = {
+  locationInsert: `SELECT * FROM locations WHERE search_query=$1`
+}
 
-// =========== TARGET LOCATION from API ===========
+// =========== LOCATION ROUTE from API ===========
 
 app.get('/location', (request, response) => {
   const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet. John take the question (lat, lng) because he wants data at a specific lat/lng.
 
-  client.query(`SELECT * FROM locations WHERE search_query=$1`, [query]).then(sqlResult => {
-    if(sqlResult.rowCount > 0) {
-      response.send(sqlResult.rows[0]);
-      console.log('Data exists! :):):)')
-    } else {
-    //BEGINNING OF ELSE
-      const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GEOCODE_API}`;
+  client.query(sqlS.locationInsert, [query])
+    .then(
+      sqlResult => {
+        if(sqlResult.rowCount > 0) {
+          response.send(sqlResult.rows[0]);
+          console.log('Data exists! :):):)')
+        } else {
+          //BEGINNING OF ELSE
+          const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GEOCODE_API}`;
 
-      superagent.get(urlToVisit).then(responseFromSuper => {
-        // console.log('stuff', responseFromSuper.body);
-        console.log('WE are querying new data.')
-        const geoData = responseFromSuper.body;
+          superagent.get(urlToVisit).then(responseFromSuper => {
+            // console.log('stuff', responseFromSuper.body);
+            console.log('WE are querying new data.')
+            const geoData = responseFromSuper.body;
 
-        const specificGeoData = geoData.results[0];
+            const specificGeoData = geoData.results[0];
 
-        const formatted = specificGeoData.formatted_address;
-        const lat = specificGeoData.geometry.location.lat;
-        const lng = specificGeoData.geometry.location.lng;
+            const formatted = specificGeoData.formatted_address;
+            const lat = specificGeoData.geometry.location.lat;
+            const lng = specificGeoData.geometry.location.lng;
 
-        const newLocation = new Location(query, formatted, lat, lng);
-        //start the response cycle
-        const sqlQueryInsert = `INSERT INTO locations
-        (search_query, formatted_query, latitude, longitude)
-        VALUES 
-        ($1, $2, $3, $4);`;
-        const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
+            const newLocation = new Location(query, formatted, lat, lng);
 
-        client.query(sqlQueryInsert, valuesArray);
+            insertIntoLocationTable(newLocation);
 
-
-        response.send(newLocation);
-      }).catch(error => {
-        response.status(500).send(error.message);
-        console.error(error);
+            response.send(newLocation);
+            
+          }).catch(error => {
+            response.status(500).send(error.message);
+            console.error(error);
+          })
+        }//END OF ELSE
       })
-    }//END OF ELSE
-  })
 })
 
 // =========== TARGET WEATHER from API ===========
@@ -170,8 +170,42 @@ function Location(query, format, lat, lng) {
   this.latitude = lat;
   this.longitude = lng;
 }
+
+//Input: Location object
+//Return: Nothing
+//Work: Takes in a new location and does nothing. 
+function insertIntoLocationTable(newLocation){
+  //Inserts into SQL Database
+  //Insert statement has stand ins of $1 $2 ect for the values that need to go into a query.
+  const sqlQueryInsert = `INSERT INTO locations
+  (search_query, formatted_query, latitude, longitude)
+  VALUES 
+  ($1, $2, $3, $4);`;
+  //My array needs to have the same amount of things as I have $1, $2, $2, $4, ect
+  //$1 === newLocation.search_query
+  const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
+
+  client.query(sqlQueryInsert, valuesArray);
+}
+
 // ===================================================
 
 app.listen(PORT, () => {
   console.log(`app is running on ${PORT}`);
 });
+
+
+
+
+
+/*
+Notes from class:
+
+Q: How does JS set a value for a function call?
+A: 
+
+YOU CAN ONLY CALL '.then' on a 'promise'.
+superagent.get fires off and becomes a promise. So return superagent.get(urlToVisit); returns a promise
+
+
+*/
