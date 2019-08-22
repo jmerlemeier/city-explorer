@@ -1,0 +1,42 @@
+-----Database Setup
+
+X Install and require the NPM PostgreSQL package pg in your server.js file.
+ 
+X Add an environment variable to your server named DATABASE_URL, and use it appropriately in your code.
+
+X Mac users: postgres://localhost:5432/DBNAME
+
+Pass the appropriate argument when instantiating a new Client.
+
+
+-----Table Creation
+
+X Create a file called schema.sql which contains correct SQL queries to drop all of your tables and create them, if they do not already exist. All tables should be created in the same database. Each table has its own constuctor. 
+
+X Execute this file from the command line with the following syntax: psql -d <database-name> -f <filename>
+
+
+-----Server code workflow:
+
+Create a function to check the database for the location information.
+- If the location record already exists in the database, send the location object in the response to the client.
+- It it does not exist in the database, request the data from the API, save it in the database, and then send the location object in the response to the client.
+
+For all of your other models, write a single lookup function that is dynamic and can be shared by all of the models. This lookup function should accept several parameters: The search query, A function to execute if the records exist in the table, and a function to execute if the records do not exist in the table.
+
+Within your route callback, invoke your lookup function, passing the appropriate options, and then...
+- If the records exist, send them as the response to the client.
+- If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
+
+
+
+
+-----Heroku Deployment
+
+In your Heroku instance, navigate to the Resources tab. In the Add-Ons, search for "Postgres" and provision the free version.
+
+Replicate your local database to Heroku, using the following format for your command: heroku pg:push city_explorer DATABASE_URL --app <your-heroku-app-name-here>
+
+Unless the local database is pushed to Heroku again, any changes to the local database will not be reflected in the production database. To work with the remote database on your machine, use the following format for your command. Use the same DATABASE_URL variable from the push command, but you must provide the name of a new table that does not already exist to serve as the destination of the data pull. This will prevent you from overwriting your existing local data. For example: heroku pg:pull DATABASE_URL <new-local-empty-database-name>
+
+Deploy your application

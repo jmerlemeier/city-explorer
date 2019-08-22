@@ -19,6 +19,7 @@
   "homepage": "https://github.com/jmerlemeier/city-explorer#readme",
   "dependencies": {
     "express": "^4.17.1",
+    "pg": "^7.12.1",
     "superagent": "^5.1.0"
   }
 }
