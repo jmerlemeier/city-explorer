@@ -22,7 +22,7 @@ function Location(query, format, lat, lng) {
 // =========== TARGET LOCATION from API ===========
 
 app.get('/location', (request, response) => {
-  const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet.
+  const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet. John take the question (lat, lng) because he wants data at a specific lat/lng.
 
   const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GEOCODE_API}`;
 
@@ -77,6 +77,7 @@ function getWeather(request, response){
     this.time = new Date(time *1000).toDateString();
   }
 }
+
 // ============ EVENTBRITE from API ==============
 
 app.get('/events', getEvents)
@@ -129,3 +130,90 @@ app.listen(PORT, () => {
 //lab tomorrow
 //1. Get location (just did in class) and weather and eventbite data from the internet.
 //2. Trello board has everything I need for days instructions.
+
+
+
+//Aug 21, 2019
+//FRONT END - with jQuery and AJAX
+//result comes from server
+//need link, name, event_date, summary.
+//look in POSTMAN. Looks like it lives at obj.name.text;
+
+//SQL Databases
+//How to interact with it from a dev standpoint.
+//CASE IS NOT READ HERE. CAMEL CASE DOES NOT work well.
+
+//PostgreSQL Shell https://github.com/codefellows/seattle-301d50/blob/master/class-08/cheatsheets/postgres-shell.md
+
+//Database is big picture - like an excel spreadsheet
+//         /dt ---> lists data tables.
+//----------------------
+//sjschmidt=# \dt
+
+// List of relations
+// Schema |   Name   | Type  |   Owner
+// --------+----------+-------+-----------
+// public | articles | table | sjschmidt
+// public | authors  | table | sjschmidt
+// (4 rows)
+
+//SELECT * FROM locations;
+//hit enter, this give the table layout of what you just asked for.
+
+//CREATE A TABLE
+//city-explorer=# CREATE TABLE test (
+//city-explorer(# id SERIAL PRIMARY KEY,
+//city-explorer(# name TEXT,
+//city-explorer(# coolness INT,
+//city-explorer(# nickname VARCHAR(255)
+//city-explorer(# );
+
+//VARCHAR(255)   255 is max length of string
+
+//I WANT STUFF IN MY TABLE
+//city-explorer=# INSERT INTO test (name, coolness, nickname) VALUES ('julie', 9, 'jules');
+
+//(name, coolness, nickname) <----these are all the column headers in table.
+
+//What is in my table?
+//What is my command to select everything in my table?
+//city-explorer=# SELECT * FROM test;
+
+//We will build a schema.sql in VS CODE
+//1. name a file schedma.sql
+//2. Wipe out the old data
+//3. DROP TABLE IF EXISTS locations; <-----name of the table
+//4. CREATE TABLE locations (
+//id SERIAL PRIMARY KEY,
+//search_query VARCHAR(255),
+//formatted_query VARCHAR(255),
+//latitude NUMERIC(10,7),
+//longitude NUMERIC(10,7),
+//);
+
+// The next 4 lines are NOT MSMediaKeyNeededEvent, ONLY FOR TESTING!!!!!
+// INSERT INTO locations
+// (search_query, formatted_query, latitude, longitude)
+// VALUES
+// ('las vegas' 'Las VEGASSSSSS', 33.3333333, 122.2222222);
+
+
+// \q   <-----quits
+
+//psql -f schema.sql -d city-explorer
+
+//for lab
+//build schema.sql file for each of the things getting data for: events, yelp, ect.
+//4 drop table statments and 4 create tables.
+
+// server.js
+//build the usual server stuff
+//express lets me listen
+//superagent allows us to get info from the internet
+//postgresQL  --->   npm install -S pg ------> this lets us talk to postgres
+//we need a connection string 
+//postgres lives at a different PORT than server
+
+//DATABASE_URL=postgres://jmerlemeier:passwords  <-----goes in .env
+
+//now check to see if 

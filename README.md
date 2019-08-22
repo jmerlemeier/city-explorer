@@ -16,4 +16,13 @@ Number and name of feature: APIs
 Estimate of time needed to complete: 4 hours
 Start time: 9:30
 Finish time: 13:00
+Actual time needed to complete: 2.5 hours
+
+
+
+
+Number and name of feature: 
+Estimate of time needed to complete: 
+Start time:
+Finish time: 
 Actual time needed to complete: 
