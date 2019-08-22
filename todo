@@ -24,7 +24,7 @@ X Create a function to check the database for the location information.
 
 X For all of your other models, write a single lookup function that is dynamic and can be shared by all of the models. This lookup function should accept several parameters: The search query, A function to execute if the records exist in the table, and a function to execute if the records do not exist in the table.
 
-Within your route callback, invoke your lookup function, passing the appropriate options, and then...
+X Within your route callback, invoke your lookup function, passing the appropriate options, and then...
 - If the records exist, send them as the response to the client.
 - If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
 

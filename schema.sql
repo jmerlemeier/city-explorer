@@ -25,5 +25,5 @@ CREATE TABLE events (
   link VARCHAR(255),
   name VARCHAR(255),
   event_date VARCHAR(255),
-  summary VARCHAR(255)
+  summary TEXT
 );

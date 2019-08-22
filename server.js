@@ -75,7 +75,6 @@ function getWeather(request, response){
       console.log('Weather Data exists! :):):)')
     } else {
       superagent.get(urlDarkSky).then(responseFromSuper => {
-
         const weatherData = responseFromSuper.body;
         // console.log('weather', weatherData);
 
@@ -98,6 +97,7 @@ function getWeather(request, response){
         console.error(error);
       })
     }//end of else
+
     function Day(summary, time) {
       this.forecast = summary;
       this.time = new Date(time *1000).toDateString();
@@ -109,33 +109,56 @@ function getWeather(request, response){
 
 app.get('/events', getEvents)
 function getEvents(request, response){
+
+  let lastTwentyEvents = [];
+
   let eventData = request.query.data;
   const urlfromEventbrite = `https://www.eventbriteapi.com/v3/events/search/?sort_by=date&location.latitude=${eventData.latitude}&location.longitude=${eventData.longitude}&token=${process.env.EVENTBRITE_API_KEY}`;
-///WILL REPLACE BELOW
+  //WILL REPLACE BELOW
+  client.query(`SELECT * FROM events WHERE search_query=$1`, [eventData.search_query]).then(sqlResult => {
+    if(sqlResult.rowCount > 0) {
+      response.send(sqlResult.rows);
+      console.log('Event Data exists! :):):)')
+    } else {
+      superagent.get(urlfromEventbrite).then(responseFromSuper => {
+        const eventbriteData = responseFromSuper.body.events;
 
+        //for loop to only grab 20 things
+        for(let i = 0; i < 20; i++) {
+          let url = eventbriteData[i].url;
+          let name = eventbriteData[i].name.text;
+          let eventDate = eventbriteData[i].start.local;
+          let eventSummary = eventbriteData[i].description.text;
 
+          const formattedEvents = new Event(url, name, eventDate, eventSummary);
 
-  superagent.get(urlfromEventbrite).then(responseFromSuper => {
-    // console.log(responseFromSuper.body)
+          lastTwentyEvents.push(formattedEvents);
+        }
 
-    const eventbriteData = responseFromSuper.body.events;
+        lastTwentyEvents.forEach(event => {
+        //start the response cycle
+          const sqlQueryInsert = `INSERT INTO events
+        (search_query, link, name, event_date, summary)
+        VALUES 
+        ($1, $2, $3, $4, $5);`;
+          const valuesArray = [eventData.search_query, event.link, event.date, event.event_name, event.summary];
+          client.query(sqlQueryInsert, valuesArray);
+        })
 
-    const formattedEvents = eventbriteData.map(event => new Event(event.url, event.name.text, event.start.local, event.description.text));
+        response.send(lastTwentyEvents);
+      }).catch(error => {
+        response.status(500).send(error.message);
+        console.error(error);
+      })
 
-    response.send(formattedEvents);
-  }).catch(error => {
-    response.status(500).send(error.message);
-    console.error(error);
+    }//END OF ELSE
+    function Event (link, name, event_date, summary){
+      this.link = link;
+      this.name = name;
+      this.event_date = new Date(event_date).toDateString();
+      this.summary = summary;
+    }
   })
-
-  
-  //END OF ELSE
-  function Event (link, name, event_date, summary){
-    this.link = link;
-    this.name = name;
-    this.event_date = new Date(event_date).toDateString();
-    this.summary = summary;
-  }
 }
 
 // ============= HELPER FUNCTION =======================
