@@ -58,14 +58,14 @@ function Movie(title, overview, aveVotes, totalVotes, image, popularity, release
   this.released_on = released;
 }
 
-// //Constructor for YELP
-// function Yelp(name, image, price, rating, url){
-//   this.name = name;
-//   this.image_url = image;
-//   this.price = price;
-//   this.rating = rating;
-//   this.url = url;
-// }
+//Constructor for YELP
+function Yelp(yelp){ //name, image, price, rating, url
+  this.name = yelp.name;
+  this.image_url = yelp.image;
+  this.price = yelp.price;
+  this.rating = yelp.rating;
+  this.url = yelp.url;
+}
 
 // //Constructor for TRAILS
 // function Trails(name, location, length, stars, votes, summary, url, condition, conDate, conTime){
@@ -107,7 +107,7 @@ function updateLocation(query, request, response) {
 
     //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
     client.query(sqlQueryInsert, valuesArray);
-    response.send(newLocation);        
+    response.send(newLocation);
   }).catch(error => {
     response.status(500).send(error.message);
     console.error(error);
@@ -116,7 +116,7 @@ function updateLocation(query, request, response) {
 
 function updateWeather(query, request, response){
   const urlToVisit = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`
-  superagent.get(urlToVisit).then(responseFromSuper => {        
+  superagent.get(urlToVisit).then(responseFromSuper => {
     const formattedDays = responseFromSuper.body.daily.data.map(
       day => new Day(day.summary, day.time)
     );
@@ -181,6 +181,32 @@ function updateMovies(query, request, response){
     console.error(error);
   })
 }
+
+function updateYelp (query, request, response){
+  const yelpData = `https://api.yelp.com/v3/businesses/search?latitude=${query.latitude}&longitude=${query.longitude}`
+  superagent.get(yelpData)
+    .set('Authorization', `Bearer ${process.env.YELP_API_KEY}`).then(responseFromSuper => {
+      const yelpReviews = responseFromSuper.body.businesses.slice(0,20).map(yelp => new Yelp(yelp)
+      );
+      response.send(yelpReviews);
+
+      const whatever = responseFromSuper.body.businesses;
+      console.log(whatever);
+
+      yelpReviews.forEach(review => {
+        const sqlQueryInsert = `INSERT INTO reviews (search_query, name, image_url, price, rating, url)
+      VALUES ($1, $2, $3, $4, $5, $6);`;
+        const valuesArray = [query.search_query, review.name, review.image_url, review.price, review.rating, review.url];//must match data
+
+        client.query(sqlQueryInsert, valuesArray);
+      })
+    }).catch(error => {
+      console.log(response);
+      response.status(500).send('This is an error!!!!!!!!');
+      console.error(error);
+    })
+}
+
 //===================== ALL GETS ===================
 
 function getLocation(request, response) {
@@ -237,7 +263,16 @@ function getMovies(request, response){
   });
 }
 
-
+function getYelp(request, response){
+  const query = request.query.data;
+  client.query(`SELECT * FROM reviews WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
+    if(sqlResult.rowCount > 0){
+      response.send(sqlResult.rows);
+    }else {
+      updateYelp(query, request, response);
+    }
+  });
+}
 
 //===================== HELPER FUNCTIONS ===================
 
@@ -270,7 +305,7 @@ app.get('/location', getLocation);
 app.get('/weather', getWeather);
 app.get('/events', getEvents);
 app.get('/movies', getMovies);
-// app.get('/yelp', getYelp);
+app.get('/yelp', getYelp);
 // app.get('/trails', getTrails);
 
 app.listen(PORT, () => {console.log(`app is up on PORT ${PORT}`)});

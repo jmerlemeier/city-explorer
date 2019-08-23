@@ -39,7 +39,20 @@ CREATE TABLE movies (
   title VARCHAR(255),
   overview VARCHAR,
   average_votes VARCHAR(255),
+  total_votes VARCHAR(255),
   image_url VARCHAR(255),
   popularity VARCHAR(255),
   released_on VARCHAR(255)
   );
+
+DROP TABLE IF EXISTS reviews;
+
+CREATE TABLE reviews (
+  id SERIAL PRIMARY KEY,
+  search_query VARCHAR(255),
+  name VARCHAR(255),
+  image_url VARCHAR(255),
+  price VARCHAR(255),
+  rating NUMERIC(10,7),
+  url VARCHAR(255)
+);

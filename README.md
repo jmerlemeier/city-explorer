@@ -27,12 +27,12 @@ Actual time needed to complete: 2.5 hours
 Number and name of feature: #5 MOVIES
 Estimate of time needed to complete: 60 mins
 Start time: 9:00
-Finish time: 
-Actual time needed to complete: 
+Finish time: 11:00
+Actual time needed to complete: 2 hours
 
 Number and name of feature: #5 YELP
-Estimate of time needed to complete: 60 mins
-Start time: 
+Estimate of time needed to complete: 120 mins
+Start time: 11:00
 Finish time: 
 Actual time needed to complete: 
 
