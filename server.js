@@ -14,9 +14,9 @@ app.use(cors());
 //GLOBAL VARS
 const PORT = process.env.PORT || 8888;
 
-const msInSec = 1000;
-const secInHour = 3600;
-const secInDay = 3600 * 24;
+const MS_IN_SEC = 1000;
+const SEC_IN_HOUR = 3600;
+const SEC_IN_DAY = 3600 * 24;
 
 //CONNECT TO DATABASE
 const client = new pg.Client(process.env.DATABASE_URL);
@@ -40,7 +40,7 @@ function Day(summary, time) {
 }
 
 //Constructor for Events
-function Event(link, name, event_date, summary){
+function Eventbrite(link, name, event_date, summary){
   this.link = link;
   this.name = name;
   this.event_date = new Date(event_date).toDateString();
@@ -53,216 +53,231 @@ function Movie(title, overview, aveVotes, totalVotes, image, popularity, release
   this.overview = overview;
   this.average_votes = aveVotes;
   this.total_votes = totalVotes;
-  this.image_url = image;
+  this.image_url = `https://image.tmdb.org/t/p/w500${image}`;
   this.popularity = popularity;
   this.released_on = released;
 }
 
-//Constructor for YELP
-function Yelp(name, image, price, rating, url){
-  this.name = name;
-  this.image_url = image;
-  this.price = price;
-  this.rating = rating;
-  this.url = url;
+// //Constructor for YELP
+// function Yelp(name, image, price, rating, url){
+//   this.name = name;
+//   this.image_url = image;
+//   this.price = price;
+//   this.rating = rating;
+//   this.url = url;
+// }
+
+// //Constructor for TRAILS
+// function Trails(name, location, length, stars, votes, summary, url, condition, conDate, conTime){
+//   this.name = name;
+//   this.location = location;
+//   this.length = length;
+//   this.stars = stars;
+//   this.star_votes = votes;
+//   this.summary = summary;
+//   this.trail_url = url;
+//   this.condition = condition;
+//   this.condition_date = conDate;
+//   this.condition_time = conTime;
+// }
+
+//Start of functions
+
+//===================== ALL UPDATES ===================
+
+function updateLocation(query, request, response) {
+  const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${process.env.GEOCODE_API}`
+  superagent.get(urlToVisit).then(responseFromSuper => {
+
+    // I simply replaced my geodata require, with the data in the body of my superagent response
+    const geoData = responseFromSuper.body;
+    const specificGeoData = geoData.results[0];
+    const newLocation = new Location(
+      query,
+      specificGeoData.formatted_address,
+      specificGeoData.geometry.location.lat,
+      specificGeoData.geometry.location.lng
+    )
+
+    //Logging data into the SQL DB
+    const sqlQueryInsert = `
+      INSERT INTO locations (search_query, formatted_query, latitude, longitude, created_at)
+      VALUES ($1, $2, $3, $4, $5);`;
+    const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude, now()];
+
+    //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
+    client.query(sqlQueryInsert, valuesArray);
+    response.send(newLocation);        
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
 }
 
-//Constructor for TRAILS
-function Trails(name, location, length, stars, votes, summary, url, condition, conDate, conTime){
-  this.name = name;
-  this.location = location;
-  this.length = length;
-  this.stars = stars;
-  this.star_votes = votes;
-  this.summary = summary;
-  this.trail_url = url;
-  this.condition = condition;
-  this.condition_date = conDate;
-  this.condition_time = conTime;
+function updateWeather(query, request, response){
+  const urlToVisit = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`
+  superagent.get(urlToVisit).then(responseFromSuper => {        
+    const formattedDays = responseFromSuper.body.daily.data.map(
+      day => new Day(day.summary, day.time)
+    );
+    response.send(formattedDays);
+
+    //Logging data into the SQL DB
+    formattedDays.forEach(day => {
+      const sqlQueryInsert = `
+        INSERT INTO weather (search_query, forecast, time, created_at)
+        VALUES ($1, $2, $3, $4);`;
+      const valuesArray = [query.search_query, day.forecast, day.time, now()]
+
+      //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
+      client.query(sqlQueryInsert, valuesArray);
+    })
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  });
 }
 
+function updateEvents(query, request, response){
+  const urlToVisit = `https://www.eventbriteapi.com/v3/events/search?location.longitude=${request.query.data.longitude}&location.latitude=${request.query.data.latitude}&token=${process.env.EVENTBRITE_API_KEY}`;
+  superagent.get(urlToVisit).then(responseFromSuper => {
+    const formattedEvent = responseFromSuper.body.events.map(
+      event => new Eventbrite(event.url, event.name.text, event.start.local, event.summary)
+    );
+    response.send(formattedEvent);
+    //Logging data into the SQL DB
+    formattedEvent.forEach(event => {
+      const sqlQueryInsert = `
+        INSERT INTO events (search_query, link, name, event_date, summary, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6);`;
+      const valuesArray = [query.search_query, event.link, event.name, event.event_date, event.summary, now()];
 
-
-//Part of LOCATION route
-const sqlS = {
-  locationInsert: `SELECT * FROM locations WHERE search_query=$1`
+      //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
+      client.query(sqlQueryInsert, valuesArray);
+    })
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
 }
 
-// =========== LOCATION ROUTE from API ===========
+function updateMovies(query, request, response){
+  const urlToVisit = `https://api.themoviedb.org/3/search/movie?api_key=${process.env.MOVIE_API_KEY}&query=${query.search_query}`;
+  superagent.get(urlToVisit).then(responseFromSuper => {
+    const formattedMovies = responseFromSuper.body.results.map(
+      movie => new Movie(movie.title, movie.overview, movie.vote_average, movie.vote_count, movie.poster_path, movie.popularity, movie.release_date)
+    );
+    response.send(formattedMovies);
+    //logging into SQL db
+    formattedMovies.forEach(movie => {
+      const sqlQueryInsert = `INSERT INTO movies (search_query, title, overview, average_votes, total_votes, image_url, popularity, released_on)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`;
+      const valuesArray = [query.search_query, movie.title, movie.overview, movie.average_votes, movie.total_votes, movie.poster_path, movie.popularity, movie.released_on];
 
-app.get('/location', (request, response) => {
-  const query = request.query.data; //request.query is part of the request (NewJohn's hand) and is a vector for questions. It lives in the URL, public info. Postal service of internet. John take the question (lat, lng) because he wants data at a specific lat/lng.
+      client.query(sqlQueryInsert, valuesArray);
+    })
+  }).catch(error => {
+    response.status(500).send(error.message);
+    console.error(error);
+  })
+}
+//===================== ALL GETS ===================
 
-  client.query(sqlS.locationInsert, [query])
-    .then(
-      sqlResult => {
-        if(sqlResult.rowCount > 0) {
-          response.send(sqlResult.rows[0]);
-          console.log('Data exists! :):):)')
-        } else {
-          //BEGINNING OF ELSE
-          const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GEOCODE_API}`;
-
-          superagent.get(urlToVisit).then(responseFromSuper => {
-            // console.log('stuff', responseFromSuper.body);
-            console.log('WE are querying new data.')
-            const geoData = responseFromSuper.body;
-
-            const specificGeoData = geoData.results[0];
-
-            const formatted = specificGeoData.formatted_address;
-            const lat = specificGeoData.geometry.location.lat;
-            const lng = specificGeoData.geometry.location.lng;
-
-            const newLocation = new Location(query, formatted, lat, lng);
-
-            insertIntoLocationTable(newLocation);
-
-            response.send(newLocation);
-
-          }).catch(error => {
-            response.status(500).send(error.message);
-            console.error(error);
-          })
-        }//END OF ELSE
-      })
-})
-
-// =========== TARGET WEATHER from API ===========
-
-app.get('/weather', getWeather)
-
-//does data exist?
-//is it too old --> give to front end
-//is it too old? --> get new data
-//doesnt exist ---> get new data
-
-function getWeather(request, response){
-  const localData = request.query.data;
-  const urlDarkSky = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${localData.latitude},${localData.longitude}`;
-
-  client.query(`SELECT * FROM weather WHERE search_query=$1`, [localData.search_query]).then(sqlResult => {
-
-    let notTooOld = true;
-    if(sqlResult.rows > 0){
-      const age = sqlResult.rows[0].created_at;
-      const ageInSeconds = (Date.now() - age)/1000; //Make a global variable and use it here so that is readable.
-      if(ageInSeconds > 15){
-        notTooOld = false;
-        client.query(`DELETE FROM weather WHERE search_query=$1`, [localData.search_query])
-      }
-      console.log('age in seconds', notTooOld)
+function getLocation(request, response) {
+  const query = request.query.data;
+  client.query(`SELECT * FROM locations WHERE search_query=$1`, [query]).then(sqlResult => {
+    if(sqlResult.rowCount > 0){
+      response.send(sqlResult.rows[0]);
+    } else {
+      updateLocation(query, request, response);
     }
-
-    if(sqlResult.rowCount > 0 && notTooOld){
-      response.send(sqlResult.rows);
-      console.log('Weather Data exists! :):):)')
-      //didnt find stuff
+  });
+}
+function getWeather(request, response){
+  const query = request.query.data;
+  client.query(`SELECT * FROM weather WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
+    if(sqlResult.rowCount > 0){
+      if (isOlderThan(sqlResult.rows, 15)) {
+        console.log('Refreshing old weather data');
+        deleteRows(sqlResult.rows, 'weather');
+        updateWeather(query, request, response);
+      } else {
+        response.send(sqlResult.rows);
+      }
     } else {
-      superagent.get(urlDarkSky).then(responseFromSuper => {
-        const weatherData = responseFromSuper.body;
-        // console.log('weather', weatherData);
-
-        const eightDays = weatherData.daily.data;
-        const formattedDays = eightDays.map(day => new Day(day.summary, day.time)
-        );
-        formattedDays.forEach(day => {
-          //start the response cycle
-          const sqlQueryInsert = `INSERT INTO weather
-          (search_query, forecast, time, created_at)
-          VALUES 
-          ($1, $2, $3, $4);`;
-          const valuesArray = [localData.search_query, day.forecast, day.time, day.created_at];
-          client.query(sqlQueryInsert, valuesArray);
-        })
-
-        response.send(formattedDays);
-      }).catch(error => {
-        response.status(500).send(error.message);
-        console.error(error);
-      })
-    }//end of else
-  })
+      updateWeather(query, request, response);
+    }
+  });
 }
 
-// ============ EVENTBRITE from API ==============
-
-app.get('/events', getEvents)
-function getEvents(request, response){
-
-  let lastTwentyEvents = [];
-
-  let eventData = request.query.data;
-  const urlfromEventbrite = `https://www.eventbriteapi.com/v3/events/search/?sort_by=date&location.latitude=${eventData.latitude}&location.longitude=${eventData.longitude}&token=${process.env.EVENTBRITE_API_KEY}`;
-  //WILL REPLACE BELOW
-  client.query(`SELECT * FROM events WHERE search_query=$1`, [eventData.search_query]).then(sqlResult => {
-    if(sqlResult.rowCount > 0) {
-      response.send(sqlResult.rows);
-      console.log('Event Data exists! :):):)')
+function getEvents(request, response) {
+  const query = request.query.data;
+  client.query(`SELECT * FROM events WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
+    if(sqlResult.rowCount > 0){
+      if (isOlderThan(sqlResult.rows, SEC_IN_DAY)) {
+        deleteRows(sqlResult.rows, 'events');
+        updateEvents(query, request, response);
+      } else {
+        response.send(sqlResult.rows);
+      }
     } else {
-      superagent.get(urlfromEventbrite).then(responseFromSuper => {
-        const eventbriteData = responseFromSuper.body.events;
-
-        //for loop to only grab 20 things
-        for(let i = 0; i < 20; i++) {
-          let url = eventbriteData[i].url;
-          let name = eventbriteData[i].name.text;
-          let eventDate = eventbriteData[i].start.local;
-          let eventSummary = eventbriteData[i].description.text;
-
-          const formattedEvents = new Event(url, name, eventDate, eventSummary);
-
-          lastTwentyEvents.push(formattedEvents);
-        }
-
-        lastTwentyEvents.forEach(event => {
-        //start the response cycle
-          const sqlQueryInsert = `INSERT INTO events
-        (search_query, link, name, event_date, summary)
-        VALUES 
-        ($1, $2, $3, $4, $5);`;
-          const valuesArray = [eventData.search_query, event.link, event.date, event.event_name, event.summary];
-          client.query(sqlQueryInsert, valuesArray);
-        })
-
-        response.send(lastTwentyEvents);
-      }).catch(error => {
-        response.status(500).send(error.message);
-        console.error(error);
-      })
-
-    }//END OF ELSE
-  })
+      updateEvents(query, request, response);
+    }
+  });
 }
 
-// ============= HELPER FUNCTION =======================
-
-//Input: Location object
-//Return: Nothing
-//Work: Takes in a new location and does nothing.
-function insertIntoLocationTable(newLocation){
-  //Inserts into SQL Database
-  //Insert statement has stand ins of $1 $2 ect for the values that need to go into a query.
-  const sqlQueryInsert = `INSERT INTO locations
-  (search_query, formatted_query, latitude, longitude)
-  VALUES 
-  ($1, $2, $3, $4);`;
-  //My array needs to have the same amount of things as I have $1, $2, $2, $4, ect
-  //$1 === newLocation.search_query
-  const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude];
-
-  client.query(sqlQueryInsert, valuesArray);
+function getMovies(request, response){
+  const query = request.query.data;
+  client.query(`SELECT * FROM movies WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
+    if(sqlResult.rowCount > 0){
+      response.send(sqlResult.rows);
+    }else {
+      updateMovies(query, request, response);
+    }
+  });
 }
 
-// ===================================================
-
-app.listen(PORT, () => {
-  console.log(`app is running on ${PORT}`);
-});
 
 
+//===================== HELPER FUNCTIONS ===================
+
+function now() {
+  // seconds now
+  return Math.floor((new Date()).valueOf() / MS_IN_SEC);
+}
+
+function deleteRows(rows, table) {
+  const deleteQuery = `
+    DELETE FROM ${table}
+    WHERE id IN (${rows.map(row => row.id).join(',')});`;
+  client.query(deleteQuery, []);
+}
+
+function isOlderThan(rows, seconds){
+  for(let i = 0; i<rows.length; i++){
+    if(parseInt(rows[i].created_at) + seconds < now()) {
+      // at least one of the rows is older than
+      return true;
+    }
+  }
+  // none of the rows is older than
+  return false;
+}
+
+//===================== EXECUTABLE CODE ===================
+
+app.get('/location', getLocation);
+app.get('/weather', getWeather);
+app.get('/events', getEvents);
+app.get('/movies', getMovies);
+// app.get('/yelp', getYelp);
+// app.get('/trails', getTrails);
+
+app.listen(PORT, () => {console.log(`app is up on PORT ${PORT}`)});
 
 
+
+// ==================================================================
 
 /*
 Notes from class:
