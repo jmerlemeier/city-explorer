@@ -1,22 +1,89 @@
 'use strict'
 
+//REQUIRED
 //require() is an import statement built into node.js - it reads complex files.
 const express = require('express');
 const cors = require('cors');
 const pg = require('pg');
 const superagent = require('superagent');
 require('dotenv').config()
-
 const app = express();
 app.use(cors());
 
+
+//GLOBAL VARS
+const PORT = process.env.PORT || 8888;
+
+const msInSec = 1000;
+const secInHour = 3600;
+const secInDay = 3600 * 24;
+
+//CONNECT TO DATABASE
 const client = new pg.Client(process.env.DATABASE_URL);
 client.connect();
 client.on('error', (error) => console.error(error));
 
-//Global Vars
-const PORT = process.env.PORT || 8888;
+//CONSTRUCTOR FUNCTIONS
+//Constructor for Location
+function Location(query, format, lat, lng) {
+  this.search_query = query;
+  this.formatted_query = format;
+  this.latitude = lat;
+  this.longitude = lng;
+}
 
+//Constructor for Weather
+function Day(summary, time) {
+  this.forecast = summary;
+  this.time = new Date(time *1000).toDateString();
+  this.created_at = Date.now();
+}
+
+//Constructor for Events
+function Event(link, name, event_date, summary){
+  this.link = link;
+  this.name = name;
+  this.event_date = new Date(event_date).toDateString();
+  this.summary = summary;
+}
+
+//Constructor for MOVIES
+function Movie(title, overview, aveVotes, totalVotes, image, popularity, released){
+  this.title = title;
+  this.overview = overview;
+  this.average_votes = aveVotes;
+  this.total_votes = totalVotes;
+  this.image_url = image;
+  this.popularity = popularity;
+  this.released_on = released;
+}
+
+//Constructor for YELP
+function Yelp(name, image, price, rating, url){
+  this.name = name;
+  this.image_url = image;
+  this.price = price;
+  this.rating = rating;
+  this.url = url;
+}
+
+//Constructor for TRAILS
+function Trails(name, location, length, stars, votes, summary, url, condition, conDate, conTime){
+  this.name = name;
+  this.location = location;
+  this.length = length;
+  this.stars = stars;
+  this.star_votes = votes;
+  this.summary = summary;
+  this.trail_url = url;
+  this.condition = condition;
+  this.condition_date = conDate;
+  this.condition_time = conTime;
+}
+
+
+
+//Part of LOCATION route
 const sqlS = {
   locationInsert: `SELECT * FROM locations WHERE search_query=$1`
 }
@@ -79,7 +146,7 @@ function getWeather(request, response){
     let notTooOld = true;
     if(sqlResult.rows > 0){
       const age = sqlResult.rows[0].created_at;
-      const ageInSeconds = (Date.now() - age)/1000;
+      const ageInSeconds = (Date.now() - age)/1000; //Make a global variable and use it here so that is readable.
       if(ageInSeconds > 15){
         notTooOld = false;
         client.query(`DELETE FROM weather WHERE search_query=$1`, [localData.search_query])
@@ -115,12 +182,6 @@ function getWeather(request, response){
         console.error(error);
       })
     }//end of else
-
-    function Day(summary, time) {
-      this.forecast = summary;
-      this.time = new Date(time *1000).toDateString();
-      this.created_at = Date.now();
-    }
   })
 }
 
@@ -171,24 +232,10 @@ function getEvents(request, response){
       })
 
     }//END OF ELSE
-    function Event (link, name, event_date, summary){
-      this.link = link;
-      this.name = name;
-      this.event_date = new Date(event_date).toDateString();
-      this.summary = summary;
-    }
   })
 }
 
 // ============= HELPER FUNCTION =======================
-
-//Constructor for Location
-function Location(query, format, lat, lng) {
-  this.search_query = query;
-  this.formatted_query = format;
-  this.latitude = lat;
-  this.longitude = lng;
-}
 
 //Input: Location object
 //Return: Nothing
