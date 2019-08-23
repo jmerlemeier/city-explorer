@@ -15,6 +15,7 @@ CREATE TABLE weather (
   search_query VARCHAR(255),
   forecast VARCHAR(255),
   time VARCHAR(255)
+  created_at BIGINT
 );
 
 DROP TABLE IF EXISTS events;

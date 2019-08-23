@@ -52,7 +52,7 @@ app.get('/location', (request, response) => {
             insertIntoLocationTable(newLocation);
 
             response.send(newLocation);
-            
+
           }).catch(error => {
             response.status(500).send(error.message);
             console.error(error);
@@ -65,14 +65,32 @@ app.get('/location', (request, response) => {
 
 app.get('/weather', getWeather)
 
+//does data exist?
+//is it too old --> give to front end
+//is it too old? --> get new data
+//doesnt exist ---> get new data
+
 function getWeather(request, response){
   const localData = request.query.data;
   const urlDarkSky = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${localData.latitude},${localData.longitude}`;
-  ///WILL REPLACE BELOW
+
   client.query(`SELECT * FROM weather WHERE search_query=$1`, [localData.search_query]).then(sqlResult => {
-    if(sqlResult.rowCount > 0) {
+
+    let notTooOld = true;
+    if(sqlResult.rows > 0){
+      const age = sqlResult.rows[0].created_at;
+      const ageInSeconds = (Date.now() - age)/1000;
+      if(ageInSeconds > 15){
+        notTooOld = false;
+        client.query(`DELETE FROM weather WHERE search_query=$1`, [localData.search_query])
+      }
+      console.log('age in seconds', notTooOld)
+    }
+
+    if(sqlResult.rowCount > 0 && notTooOld){
       response.send(sqlResult.rows);
       console.log('Weather Data exists! :):):)')
+      //didnt find stuff
     } else {
       superagent.get(urlDarkSky).then(responseFromSuper => {
         const weatherData = responseFromSuper.body;
@@ -84,10 +102,10 @@ function getWeather(request, response){
         formattedDays.forEach(day => {
           //start the response cycle
           const sqlQueryInsert = `INSERT INTO weather
-          (search_query, forecast, time)
+          (search_query, forecast, time, created_at)
           VALUES 
-          ($1, $2, $3);`;
-          const valuesArray = [localData.search_query, day.forecast, day.time];
+          ($1, $2, $3, $4);`;
+          const valuesArray = [localData.search_query, day.forecast, day.time, day.created_at];
           client.query(sqlQueryInsert, valuesArray);
         })
 
@@ -101,6 +119,7 @@ function getWeather(request, response){
     function Day(summary, time) {
       this.forecast = summary;
       this.time = new Date(time *1000).toDateString();
+      this.created_at = Date.now();
     }
   })
 }
@@ -173,7 +192,7 @@ function Location(query, format, lat, lng) {
 
 //Input: Location object
 //Return: Nothing
-//Work: Takes in a new location and does nothing. 
+//Work: Takes in a new location and does nothing.
 function insertIntoLocationTable(newLocation){
   //Inserts into SQL Database
   //Insert statement has stand ins of $1 $2 ect for the values that need to go into a query.
@@ -202,10 +221,29 @@ app.listen(PORT, () => {
 Notes from class:
 
 Q: How does JS set a value for a function call?
-A: 
+A:
 
 YOU CAN ONLY CALL '.then' on a 'promise'.
 superagent.get fires off and becomes a promise. So return superagent.get(urlToVisit); returns a promise
 
 
+Cache
+Saving stuff for easier use later
+
+Cache hit: the thing  WAS in database.
+Cache miss: the thing was NOT already saved in database.
+
+1. Check DB for weather
+2. function cache hit.
+3. function cache miss.
+
+When do I want to update our database?
+location? Never
+Weather? hourly, pilots get it everyhour
+---you must check weather every 15 seconds.
+---you have to test this, so that is why we have it 15 secs
+event? daily
+yelp? weekly
+movies film here? monthly
+trails? Daily
 */
