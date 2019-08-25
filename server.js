@@ -10,12 +10,11 @@ require('dotenv').config()
 const app = express();
 app.use(cors());
 
-
 //GLOBAL VARS
 const PORT = process.env.PORT || 8888;
 
 const MS_IN_SEC = 1000;
-const SEC_IN_HOUR = 3600;
+// const SEC_IN_HOUR = 3600;
 const SEC_IN_DAY = 3600 * 24;
 
 //CONNECT TO DATABASE
@@ -23,7 +22,8 @@ const client = new pg.Client(process.env.DATABASE_URL);
 client.connect();
 client.on('error', (error) => console.error(error));
 
-//CONSTRUCTOR FUNCTIONS
+// ====================== CONSTRUCTORS =================================
+
 //Constructor for Location
 function Location(query, format, lat, lng) {
   this.search_query = query;
@@ -80,8 +80,6 @@ function Yelp(yelp){ //name, image, price, rating, url
 //   this.condition_date = conDate;
 //   this.condition_time = conTime;
 // }
-
-//Start of functions
 
 //===================== ALL UPDATES ===================
 
@@ -190,9 +188,6 @@ function updateYelp (query, request, response){
       );
       response.send(yelpReviews);
 
-      const whatever = responseFromSuper.body.businesses;
-      console.log(whatever);
-
       yelpReviews.forEach(review => {
         const sqlQueryInsert = `INSERT INTO reviews (search_query, name, image_url, price, rating, url)
       VALUES ($1, $2, $3, $4, $5, $6);`;
@@ -201,8 +196,7 @@ function updateYelp (query, request, response){
         client.query(sqlQueryInsert, valuesArray);
       })
     }).catch(error => {
-      console.log(response);
-      response.status(500).send('This is an error!!!!!!!!');
+      response.status(500).send(error.message);
       console.error(error);
     })
 }
@@ -219,6 +213,7 @@ function getLocation(request, response) {
     }
   });
 }
+
 function getWeather(request, response){
   const query = request.query.data;
   client.query(`SELECT * FROM weather WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
@@ -239,6 +234,7 @@ function getWeather(request, response){
 function getEvents(request, response) {
   const query = request.query.data;
   client.query(`SELECT * FROM events WHERE search_query=$1`, [query.search_query]).then(sqlResult => {
+
     if(sqlResult.rowCount > 0){
       if (isOlderThan(sqlResult.rows, SEC_IN_DAY)) {
         deleteRows(sqlResult.rows, 'events');
@@ -309,38 +305,3 @@ app.get('/yelp', getYelp);
 // app.get('/trails', getTrails);
 
 app.listen(PORT, () => {console.log(`app is up on PORT ${PORT}`)});
-
-
-
-// ==================================================================
-
-/*
-Notes from class:
-
-Q: How does JS set a value for a function call?
-A:
-
-YOU CAN ONLY CALL '.then' on a 'promise'.
-superagent.get fires off and becomes a promise. So return superagent.get(urlToVisit); returns a promise
-
-
-Cache
-Saving stuff for easier use later
-
-Cache hit: the thing  WAS in database.
-Cache miss: the thing was NOT already saved in database.
-
-1. Check DB for weather
-2. function cache hit.
-3. function cache miss.
-
-When do I want to update our database?
-location? Never
-Weather? hourly, pilots get it everyhour
----you must check weather every 15 seconds.
----you have to test this, so that is why we have it 15 secs
-event? daily
-yelp? weekly
-movies film here? monthly
-trails? Daily
-*/
