@@ -1,6 +1,5 @@
 'use strict'
 
-//REQUIRED
 //require() is an import statement built into node.js - it reads complex files.
 const express = require('express');
 const cors = require('cors');
