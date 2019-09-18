@@ -82,35 +82,40 @@ function Yelp(yelp){ //name, image, price, rating, url
 
 //===================== ALL UPDATES ===================
 
+
+//============== LOCATION ==================
 function updateLocation(query, request, response) {
   const urlToVisit = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${process.env.GEOCODE_API}`
-  superagent.get(urlToVisit).then(responseFromSuper => {
+  superagent.get(urlToVisit)
+    .then(responseFromSuper => {
 
-    // I simply replaced my geodata require, with the data in the body of my superagent response
-    const geoData = responseFromSuper.body;
-    const specificGeoData = geoData.results[0];
-    const newLocation = new Location(
-      query,
-      specificGeoData.formatted_address,
-      specificGeoData.geometry.location.lat,
-      specificGeoData.geometry.location.lng
-    )
+      // I simply replaced my geodata require, with the data in the body of my superagent response
+      const geoData = responseFromSuper.body;
+      const specificGeoData = geoData.results[0];
+      const newLocation = new Location(
+        query,
+        specificGeoData.formatted_address,
+        specificGeoData.geometry.location.lat,
+        specificGeoData.geometry.location.lng
+      )
 
-    //Logging data into the SQL DB
-    const sqlQueryInsert = `
+      //Logging data into the SQL DB
+      const sqlQueryInsert = `
       INSERT INTO locations (search_query, formatted_query, latitude, longitude, created_at)
       VALUES ($1, $2, $3, $4, $5);`;
-    const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude, now()];
+      const valuesArray = [newLocation.search_query, newLocation.formatted_query, newLocation.latitude, newLocation.longitude, now()];
 
-    //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
-    client.query(sqlQueryInsert, valuesArray);
-    response.send(newLocation);
-  }).catch(error => {
-    response.status(500).send(error.message);
-    console.error(error);
-  })
+      //client.query takes in a string and array and smooshes them into a proper sql statement that it sends to the db
+      client.query(sqlQueryInsert, valuesArray);
+      response.send(newLocation);
+
+    }).catch(error => {
+      response.status(500).send(error.message);
+      console.error(error);
+    })
 }
 
+//============== WEATHER ==================
 function updateWeather(query, request, response){
   const urlToVisit = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`
   superagent.get(urlToVisit).then(responseFromSuper => {
